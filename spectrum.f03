@@ -16,7 +16,8 @@ INCLUDE "spectrum_mod.f03"
       real(kind=real64)::minPeakPosition,maxPeakPosition,  &
         plotStepSize=0.10,maxFWHM=1500.0,scaleFactor
       real(kind=real64),dimension(:),allocatable::tmpVector,fcDataLinear
-      real(kind=real64),dimension(:,:),allocatable::fcDataTable,plotData
+      real(kind=real64),dimension(:,:),allocatable::fcDataTable,  &
+        plotData,vmiPlotData
       character(len=512)::fchkFileName,tmpChar
       logical::fail=.false.,OK
       type(MQC_Gaussian_FChk_File)::myFChk
@@ -34,6 +35,7 @@ INCLUDE "spectrum_mod.f03"
  5100 format(/,1x,'Spectral Pointing Data')
  5110 format(20x,'X',25x,'Y')
  5120 format(5x,f20.5,5x,f20.5)
+ 5200 format(1x,f10.5)
 !
 !
 !     Begin the program.
@@ -66,11 +68,13 @@ INCLUDE "spectrum_mod.f03"
       endDo
 !
 !     Initialize the fcProgression object and fill the object with spectral
-!     features read from the fchk file.
+!     features read from the fchk file. Note that we convert Gaussian's values
+!     from wavenumbers to eV.
 !
-      call fcProgression%init(nPeaksFC,unitsPeakPositions='cm-1',unitsPeakIntensities='arbitrary')
+      call fcProgression%init(nPeaksFC,unitsPeakPositions='eV',  &
+        unitsPeakIntensities='arbitrary')
       do i = 1,nPeaksFC
-        call fcProgression%addPeak(peakPosition=fcDataTable(1,i),  &
+        call fcProgression%addPeak(peakPosition=fcDataTable(1,i)*evPHartree/cmM1PHartree,  &
           peakIntensity=fcDataTable(3,i),peakFWHM=maxFWHM)
       endDo
 !
@@ -132,6 +136,19 @@ INCLUDE "spectrum_mod.f03"
         write(iOut,5120) plotData(1,i),plotData(2,i)
         write(simOut,5120) plotData(1,i),plotData(2,i)
       endDo
+!
+!     Form a pixel matrix file for simulating a VMI image.
+!
+      Allocate(vmiPlotData(5,5))
+      call spectrumData_generate_vmi_image(fcProgression,vmiPlotData,  &
+        5,5,2.5)
+      write(iOut,*)
+      write(iOut,*)' Hrant - vmiPlotData:'
+      do i = 1,5
+!hph        write(iOut,5200) vmiPlotData(i,:)
+        write(iOut,*) vmiPlotData(i,:)
+      endDo
+      write(iOut,*)
 !
 !     The end of the program.
 !
