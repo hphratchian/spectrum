@@ -12,7 +12,8 @@ INCLUDE "spectrum_mod.f03"
 !
       USE spectrum_mod
       implicit none
-      integer(kind=int64)::i,nElements,nPeaksFC,nPlotPoints
+      integer(kind=int64)::i,j,nElements,nPeaksFC,nPlotPoints,  &
+        nVMIPlotPoints
       real(kind=real64)::minPeakPosition,maxPeakPosition,  &
         plotStepSize=0.30,maxFWHM,scaleFactor
       real(kind=real64),dimension(:),allocatable::tmpVector,fcDataLinear
@@ -38,6 +39,7 @@ INCLUDE "spectrum_mod.f03"
  5110 format(20x,'X(cm^-1)',25x,'X(eV)',25x,'Y')
  5120 format(5x,f20.5,5x,f20.5,5x,f20.5)
  5200 format(1x,f10.5)
+ 5500 format(*(I0,1x))
 !
 !
 !     Begin the program.
@@ -45,6 +47,7 @@ INCLUDE "spectrum_mod.f03"
       write(iOut,1000)
       call myFChk%openFile('test.fchk',fChkUnit,OK)
       open(Unit=simOut,file='simulated.dat')
+      open(Unit=vmiOut,file='vmi.dat')
       write(iOut,*)
       write(iOut,*)' OK = ',OK
       write(iOut,*)
@@ -85,7 +88,7 @@ INCLUDE "spectrum_mod.f03"
 
 !hph+
 !      maxFWHM = mqc_float(2)*evPHartree/cmM1PHartree
-      maxFWHM = mqc_float(150)
+      maxFWHM = mqc_float(1)
 !hph-
 
 !
@@ -103,7 +106,7 @@ INCLUDE "spectrum_mod.f03"
 
       do i = 1,nPeaksFC
         call fcProgression%addPeak(peakPosition=fcDataTable(1,i),  &
-          peakIntensity=fcDataTable(2,i),peakFWHM=maxFWHM)
+          peakIntensity=fcDataTable(2,i),peakFWHM=maxFWHM,peakBeta=-1.0)
       endDo
 !
 !     Now, evaluate the plot values for the simulated spectrum.
@@ -134,33 +137,43 @@ INCLUDE "spectrum_mod.f03"
       i = tmpVector(1)
       scaleFactor = plotData(2,i)
       plotData(2,:) = plotData(2,:)/scaleFactor
-      write(iOut,5100)
-      write(iOut,5110)
+      if(DEBUG) then
+        write(iOut,5100)
+        write(iOut,5110)
+      endIf
       write(simOut,5110)
       do i = 1,nPlotPoints
-        write(iOut,5120) plotData(1,i),  &
+        if(DEBUG) write(iOut,5120) plotData(1,i),  &
           plotData(1,i)*evPHartree/cmM1PHartree,plotData(2,i)
         write(simOut,5120) plotData(1,i),  &
           plotData(1,i)*evPHartree/cmM1PHartree,plotData(2,i)
       endDo
-      goto 999
 !
 !     Form a pixel matrix file for simulating a VMI image.
 !
-      Allocate(vmiPlotData(5,5))
+      nVMIPlotPoints = 1024
+      Allocate(vmiPlotData(nVMIPlotPoints,nVMIPlotPoints))
       call spectrumData_generate_vmi_image(fcProgression,vmiPlotData,  &
-        5,5,2.5)
-      write(iOut,*)
-      write(iOut,*)' Hrant - vmiPlotData:'
-      do i = 1,5
-!hph        write(iOut,5200) vmiPlotData(i,:)
-        write(iOut,*) vmiPlotData(i,:)
+        nVMIPlotPoints,nVMIPlotPoints,2.5*cmM1PHartree/evPHartree)
+      if(Allocated(tmpVector)) DeAllocate(tmpVector)
+      Allocate(tmpVector(2))
+      tmpVector = MaxLoc(vmiPlotData)
+      i = tmpVector(1)
+      j = tmpVector(2)
+      scaleFactor = vmiPlotData(i,j)
+      vmiPlotData = vmiPlotData/scaleFactor
+      vmiPlotData = mqc_float(2500)*vmiPlotData
+      tmpVector = MaxLoc(vmiPlotData)
+      i = tmpVector(1)
+      j = tmpVector(2)
+      do i = 1,nVMIPlotPoints
+        write(vmiOut,5500) (Int(vmiPlotData(i,j)),j=1,nVMIPlotPoints)
       endDo
-      write(iOut,*)
 !
 !     The end of the program.
 !
   999 Continue
-      close(unit=fChkUnit)
+      call myFChk%closeFile()
       close(unit=simOut)
+      close(unit=vmiOut)
       end program spectrum

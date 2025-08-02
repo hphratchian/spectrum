@@ -28,9 +28,11 @@
 !
 !     Module global variables.
 !
-      integer(kind=int64),parameter::iOut=6,fChkUnit=25,simOut=26
+      integer(kind=int64),parameter::iOut=6,fChkUnit=25,simOut=26,  &
+        vmiOut=27
       real(kind=real64),private::defaultPeakIntensity=1.0,  &
         defaultPeakFWHM=0.01,defaultPeakBeta=0.0
+      logical,parameter::DEBUG=.false.
 !
 !
       CONTAINS
@@ -159,8 +161,6 @@
       plot = mqc_float(0)
       do i = 1,spectrum%nPeaksAdded
         sigma = spectrum%peakFWHMs(i)/sigmaDenominator
-          (spectrum%peakIntensities(i)/(prefactorDenominator*sigma))*  &
-          Exp(-((x-spectrum%peakPositions(i))**2)/(float(2)*sigma**2))
         plot = plot + myScaleFactor*  &
           (spectrum%peakIntensities(i)/(prefactorDenominator*sigma))*  &
           Exp(-((x-spectrum%peakPositions(i))**2)/(float(2)*sigma**2))
@@ -192,24 +192,28 @@
 !
       implicit none
       class(spectrumData),intent(in)::spectrum
-      real(kind=real64),intent(out)::image(:,:)
+      real(kind=real64),dimension(:,:),intent(out)::image
       integer(kind=int64),intent(in)::M,N
       real(kind=real64),intent(in)::photonEnergy
       real(kind=real64),intent(in),optional::radiusScale
 !
 !     Local variables
-      integer::i,j,k,nPeaksUsed
-      real(real64),parameter::pi=acos(-1.0_real64)
+      integer::i,j,k,nPeaksUsed,nScaleHighRes,mHighRes,nHighRes
       real(kind=real64)::cx,cy,dx,dy,r,theta,radial_gauss,  &
-        angular_factor,sigma,norm,peak_eKE,peak_r,scale,  &
+        angular_factor,sigma,norm,peak_eKE,peak_r,  &
         localRadiusScale,maxSqrtEKE,maxSigma,tempEKE,x,y
       real(real64),dimension(:),allocatable::eKEs,sqrtEKEs,sigmas
+      real(kind=real64),dimension(:,:),allocatable::highResImage
 !
 !     Initialize image
 !
-      image(:,:) = 0.0_real64
-      cx = (real(M,real64) - 1.0) / 2.0
-      cy = (real(N,real64) - 1.0) / 2.0
+      nScaleHighRes = 1
+      mHighRes = M*nScaleHighRes
+      nHighRes = N*nScaleHighRes
+      Allocate(highResImage(mHighRes,nHighRes))
+      highResImage(:,:) = mqc_float(0)
+      cx = (mqc_float(mHighRes)-mqc_float(1))/mqc_float(2)
+      cy = (mqc_float(nHighRes)-mqc_float(1))/mqc_float(2)
 !
 !     Determine radiusScale if not provided.
 !
@@ -228,20 +232,12 @@
         if(nPeaksUsed.eq.0) return
         maxSqrtEKE = maxval(sqrtEKEs(1:nPeaksUsed))
         maxSigma = maxval(sigmas(1:nPeaksUsed))
-        localRadiusScale = (min(mqc_float(M),mqc_float(N))/mqc_float(2))/  &
+        localRadiusScale = (min(mqc_float(mHighRes),mqc_float(nHighRes))/mqc_float(2))/  &
           (maxSqrtEKE+mqc_float(3)*maxSigma)
         Deallocate(eKEs,sqrtEKEs,sigmas)
       else
         localRadiusScale = radiusScale
       endIf
-      
-!hph+
-      write(iOut,*)
-      write(iOut,*)' Hrant - localRadiusScale = ',localRadiusScale
-      call mqc_print(eKEs,iOut,header='eKEs')
-      call mqc_print(sigmas,iOut,header='sigmas')
-!hph-
-
 !
 !     Main loop over all peaks and build the image matrix.
 !
@@ -252,9 +248,9 @@
         peak_r = localRadiusScale*sqrt(peak_eKE)
         sigma = spectrum%peakFWHMs(k)/(mqc_float(2)*sqrt(mqc_float(2)*log(mqc_float(2))))
         norm = spectrum%peakIntensities(k)/(mqc_float(2)*pi*sigma*sigma)
-        do i = 1,M
+        do i = 1,mHighRes
           dx = mqc_float(i-1)-cx
-          do j = 1,N
+          do j = 1,nHighRes
             dy = mqc_float(j-1)-cy
             r = sqrt(dx*dx + dy*dy)
             if(abs(r).lt.MQC_Small) then
@@ -264,10 +260,11 @@
             endIf
             angular_factor = mqc_float(1) + spectrum%peakBeta(k)*(1.5*cos(theta)**2-0.5)
             radial_gauss = exp(-(r-peak_r)**2/(mqc_float(2)*sigma**2))
-            image(i,j) = image(i,j) + norm*angular_factor*radial_gauss
+            highResimage(i,j) = highResimage(i,j) + norm*angular_factor*radial_gauss
           endDo
         endDo
       endDo
+      image = highResImage
 !
       return
       end subroutine spectrumData_generate_vmi_image
