@@ -14,7 +14,7 @@ INCLUDE "spectrum_mod.f03"
       implicit none
       integer(kind=int64)::i,nElements,nPeaksFC,nPlotPoints
       real(kind=real64)::minPeakPosition,maxPeakPosition,  &
-        plotStepSize=0.10,maxFWHM=1500.0,scaleFactor
+        plotStepSize=0.30,maxFWHM,scaleFactor
       real(kind=real64),dimension(:),allocatable::tmpVector,fcDataLinear
       real(kind=real64),dimension(:,:),allocatable::fcDataTable,  &
         plotData,vmiPlotData
@@ -28,13 +28,15 @@ INCLUDE "spectrum_mod.f03"
  1000 format(1x,'Program spectrum.')
  4000 format(/,1x,'Stick Spectrum Data',/,  &
         10x,'Energy (cm^-1)',15x,'Intensity',15x,'Dipole Strength')
+ 4010 format(/,1x,'Stick Spectrum Data',/,  &
+        10x,'Energy (eV)',18x,'Intensity',15x,'Dipole Strength')
  4100 format(5x,f20.5,5x,f20.5,5x,f20.5)
  5000 format(/,1x,'Generating the plotting data.',/,  &
         4x,'Step Size = ',f8.5,3x,'Starting Point = ',f20.5,/,  &
         27x,'Ending   Point = ',f20.5)
- 5100 format(/,1x,'Spectral Pointing Data')
- 5110 format(20x,'X',25x,'Y')
- 5120 format(5x,f20.5,5x,f20.5)
+ 5100 format(/,1x,'Spectral Plotting Data')
+ 5110 format(20x,'X(cm^-1)',25x,'X(eV)',25x,'Y')
+ 5120 format(5x,f20.5,5x,f20.5,5x,f20.5)
  5200 format(1x,f10.5)
 !
 !
@@ -67,55 +69,53 @@ INCLUDE "spectrum_mod.f03"
         write(iOut,4100) fcDataTable(:,i)
       endDo
 !
+!     Convert the peak energies to eV. Also, scale the intensities and set
+!     maxFWHM.
+!
+!hph      fcDataTable(1,:) = fcDataTable(1,:)*evPHartree/cmM1PHartree
+      Allocate(tmpVector(1))
+      tmpVector = MaxLoc(fcDataTable(2,:))
+      i = tmpVector(1)
+      scaleFactor = fcDataTable(2,i)
+      fcDataTable(2,:) = fcDataTable(2,:)/scaleFactor
+      write(iOut,4010)
+      do i = 1,nPeaksFC
+        write(iOut,4100) fcDataTable(:,i)
+      endDo
+
+!hph+
+!      maxFWHM = mqc_float(2)*evPHartree/cmM1PHartree
+      maxFWHM = mqc_float(150)
+!hph-
+
+!
 !     Initialize the fcProgression object and fill the object with spectral
 !     features read from the fchk file. Note that we convert Gaussian's values
 !     from wavenumbers to eV.
 !
-      call fcProgression%init(nPeaksFC,unitsPeakPositions='eV',  &
-        unitsPeakIntensities='arbitrary')
+
+!hph+
+!      call fcProgression%init(nPeaksFC,unitsPeakPositions='eV',  &
+!        unitsPeakIntensities='scaled')
+      call fcProgression%init(nPeaksFC,unitsPeakPositions='cm^-1',  &
+        unitsPeakIntensities='scaled')
+!hph-
+
       do i = 1,nPeaksFC
-        call fcProgression%addPeak(peakPosition=fcDataTable(1,i)*evPHartree/cmM1PHartree,  &
-          peakIntensity=fcDataTable(3,i),peakFWHM=maxFWHM)
+        call fcProgression%addPeak(peakPosition=fcDataTable(1,i),  &
+          peakIntensity=fcDataTable(2,i),peakFWHM=maxFWHM)
       endDo
 !
 !     Now, evaluate the plot values for the simulated spectrum.
 !
-
-!hph+
-      write(iOut,*)
-      write(iOut,*)
-      write(iOut,*)' Hrant - Here is the test code...'
-      do i = 1,nPeaksFC
-        write(iOut,*) fcDataTable(1,i),fcDataTable(3,i),spectrumData_plot_value(fcProgression,fcDataTable(1,i))
-      endDo
-      write(iOut,*)
-      write(iOut,*)
-      Allocate(tmpVector(1))
-      tmpVector = MaxLoc(fcDataTable(3,:))
-      i = tmpVector(1)
-      DeAllocate(tmpVector)
-      write(iOut,*)' The position of the largest intensity is ',i
-      scaleFactor = fcDataTable(3,i)/spectrumData_plot_value(fcProgression,fcDataTable(1,i))
-      write(iOut,*)' scaleFactor = ',scaleFactor
-      write(iOut,*)
-      write(iOut,*)
-      write(iOut,*)' Hrant - Here is the test code again...'
-      do i = 1,nPeaksFC
-        write(iOut,*) fcDataTable(1,i),fcDataTable(3,i),  &
-          spectrumData_plot_value(fcProgression,fcDataTable(1,i),scaleFactor=scaleFactor)
-      endDo
-      write(iOut,*)
-      write(iOut,*)
-!hph-
-
       write(iOut,*)
       write(iOut,*)
       write(iOut,*)' Hrant - minval = ',minval(fcDataTable(1,:))
       write(iOut,*)' Hrant - maxval = ',maxval(fcDataTable(1,:))
       write(iOut,*)
       write(iOut,*)
-      minPeakPosition = minval(fcDataTable(1,:))-5.0*maxFWHM
-      maxPeakPosition = maxval(fcDataTable(1,:))+5.0*maxFWHM
+      minPeakPosition = minval(fcDataTable(1,:))-2.0*maxFWHM
+      maxPeakPosition = maxval(fcDataTable(1,:))+2.0*maxFWHM
       write(iOut,5000) plotStepSize,minPeakPosition,maxPeakPosition
       nPlotPoints = Int((maxPeakPosition-minPeakPosition)/plotStepSize) + 1
       Allocate(plotData(2,nPlotPoints))
@@ -125,17 +125,25 @@ INCLUDE "spectrum_mod.f03"
         plotData(1,i) = plotData(1,i-1)+plotStepSize
         plotData(2,i) = 0.0
       endDo
+      scaleFactor = mqc_float(1)
       do i = 1,nPlotPoints
         plotData(2,i) = plotData(2,i) +   &
           spectrumData_plot_value(fcProgression,plotData(1,i),scaleFactor=scaleFactor)
       endDo
+      tmpVector = MaxLoc(plotData(2,:))
+      i = tmpVector(1)
+      scaleFactor = plotData(2,i)
+      plotData(2,:) = plotData(2,:)/scaleFactor
       write(iOut,5100)
       write(iOut,5110)
       write(simOut,5110)
       do i = 1,nPlotPoints
-        write(iOut,5120) plotData(1,i),plotData(2,i)
-        write(simOut,5120) plotData(1,i),plotData(2,i)
+        write(iOut,5120) plotData(1,i),  &
+          plotData(1,i)*evPHartree/cmM1PHartree,plotData(2,i)
+        write(simOut,5120) plotData(1,i),  &
+          plotData(1,i)*evPHartree/cmM1PHartree,plotData(2,i)
       endDo
+      goto 999
 !
 !     Form a pixel matrix file for simulating a VMI image.
 !

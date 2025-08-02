@@ -149,16 +149,18 @@
 !
 !     Figure out the value of myScaleFactor.
 !
-      myScaleFactor = 1.0
+      myScaleFactor = mqc_float(1)
       if(Present(scaleFactor)) myScaleFactor = scaleFactor
 !
 !     Loop over the peaks in spectrum and build the plot value at x.
 !
-      prefactorDenominator = SQRT(2.0*Pi)
-      sigmaDenominator = float(2)*SQRT(float(2)*log(float(2)))
-      plot = float(0)
+      prefactorDenominator = SQRT(mqc_float(2)*Pi)
+      sigmaDenominator = mqc_float(2)*SQRT(mqc_float(2)*log(mqc_float(2)))
+      plot = mqc_float(0)
       do i = 1,spectrum%nPeaksAdded
         sigma = spectrum%peakFWHMs(i)/sigmaDenominator
+          (spectrum%peakIntensities(i)/(prefactorDenominator*sigma))*  &
+          Exp(-((x-spectrum%peakPositions(i))**2)/(float(2)*sigma**2))
         plot = plot + myScaleFactor*  &
           (spectrum%peakIntensities(i)/(prefactorDenominator*sigma))*  &
           Exp(-((x-spectrum%peakPositions(i))**2)/(float(2)*sigma**2))
