@@ -3,10 +3,11 @@ INCLUDE "spectrum_mod.f03"
 !
 !     This program reads Franck-Condon progression data from a Gaussian
 !     formatted checkpoint file and generates {x,y} plotting data with gaussian
-!     enveloping. The program requires three command line arguments:
+!     enveloping. The program requires four command line arguments:
 !           1. the name of the Gaussian fchk file with FC data
 !           2. the name of the output text spectrum file
 !           3. the name of the output text VMI data file
+!           4. the input value for beta, which is applied to all peaks
 !
 !
 !     Hrant P. Hratchian, 2024, 2025.
@@ -18,7 +19,7 @@ INCLUDE "spectrum_mod.f03"
       implicit none
       integer(kind=int64)::i,j,nElements,nPeaksFC,nPlotPoints,  &
         nVMIPlotPoints
-      real(kind=real64)::minPeakPosition,maxPeakPosition,  &
+      real(kind=real64)::beta,minPeakPosition,maxPeakPosition,  &
         plotStepSize=0.30,maxFWHM,scaleFactor
       real(kind=real64),dimension(:),allocatable::tmpVector,fcDataLinear
       real(kind=real64),dimension(:,:),allocatable::fcDataTable,  &
@@ -56,6 +57,7 @@ INCLUDE "spectrum_mod.f03"
       call get_command_argument(1,fchkFileName)
       call get_command_argument(2,spectrumFileName)
       call get_command_argument(3,vmiFileName)
+      call mqc_get_command_argument_real(4,beta)
       call myFChk%openFile(fchkFileName,fChkUnit,OK)
       open(Unit=simOut,file=spectrumFileName)
       open(Unit=vmiOut,file=vmiFileName)
@@ -104,7 +106,7 @@ INCLUDE "spectrum_mod.f03"
         unitsPeakIntensities='scaled')
       do i = 1,nPeaksFC
         call fcProgression%addPeak(peakPosition=fcDataTable(1,i),  &
-          peakIntensity=fcDataTable(2,i),peakFWHM=maxFWHM,peakBeta=-1.0)
+          peakIntensity=fcDataTable(2,i),peakFWHM=maxFWHM,peakBeta=beta)
       endDo
 !
 !     Now, evaluate the plot values for the simulated spectrum.
