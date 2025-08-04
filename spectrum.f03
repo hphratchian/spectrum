@@ -19,7 +19,8 @@ INCLUDE "spectrum_mod.f03"
       real(kind=real64),dimension(:),allocatable::tmpVector,fcDataLinear
       real(kind=real64),dimension(:,:),allocatable::fcDataTable,  &
         plotData,vmiPlotData
-      character(len=512)::fchkFileName,tmpChar
+      character(len=512)::fchkFileName,spectrumFileName,vmiFileName,  &
+        tmpChar
       logical::fail=.false.,OK
       type(MQC_Gaussian_FChk_File)::myFChk
       type(spectrumData)::fcProgression
@@ -27,6 +28,9 @@ INCLUDE "spectrum_mod.f03"
 !     Format statements.
 !
  1000 format(1x,'Program spectrum.')
+ 1500 format(/,1x,'FChk File:     ',A,/,  &
+               1x,'Spectrum File: ',A,/,  &
+               1x,'VMI File:      ',A,/)
  4000 format(/,1x,'Stick Spectrum Data',/,  &
         10x,'Energy (cm^-1)',15x,'Intensity',15x,'Dipole Strength')
  4010 format(/,1x,'Stick Spectrum Data',/,  &
@@ -45,23 +49,19 @@ INCLUDE "spectrum_mod.f03"
 !     Begin the program.
 !
       write(iOut,1000)
-      call myFChk%openFile('test.fchk',fChkUnit,OK)
-      open(Unit=simOut,file='simulated.dat')
-      open(Unit=vmiOut,file='vmi.dat')
-      write(iOut,*)
-      write(iOut,*)' OK = ',OK
-      write(iOut,*)
+      call get_command_argument(1,fchkFileName)
+      call get_command_argument(2,spectrumFileName)
+      call get_command_argument(3,vmiFileName)
+      call myFChk%openFile(fchkFileName,fChkUnit,OK)
+      open(Unit=simOut,file=spectrumFileName)
+      open(Unit=vmiOut,file=vmiFileName)
+      write(iOut,1500) TRIM(fchkFileName),TRIM(spectrumFileName),  &
+        TRIM(vmiFileName)
 !
 !     Read in the FC data from the FChk file.
 !
       call Find_FChk_Entry(myFChk,'FCHT RAssign',OK,tmpChar,nElements,  &
         Vector_Real=fcDataLinear)
-      write(iOut,*)' Hrant - After Find_FChk_Entry...'
-      write(iOut,*)'           OK           = ',OK
-      write(iOut,*)'           tmpChar      = ',tmpChar
-      write(iOut,*)'           nElements    = ',nElements
-      write(iOut,*)'           SIZE(fcData) = ',SIZE(fcDataLinear)
-      write(iOut,*)
       if(Mod(nElements,3).ne.0) call mqc_error('nElements is not divisible by 3!')
       nPeaksFC = nElements/3
       Allocate(fcDataTable(3,nPeaksFC))
@@ -96,14 +96,8 @@ INCLUDE "spectrum_mod.f03"
 !     features read from the fchk file. Note that we convert Gaussian's values
 !     from wavenumbers to eV.
 !
-
-!hph+
-!      call fcProgression%init(nPeaksFC,unitsPeakPositions='eV',  &
-!        unitsPeakIntensities='scaled')
       call fcProgression%init(nPeaksFC,unitsPeakPositions='cm^-1',  &
         unitsPeakIntensities='scaled')
-!hph-
-
       do i = 1,nPeaksFC
         call fcProgression%addPeak(peakPosition=fcDataTable(1,i),  &
           peakIntensity=fcDataTable(2,i),peakFWHM=maxFWHM,peakBeta=-1.0)
@@ -111,12 +105,6 @@ INCLUDE "spectrum_mod.f03"
 !
 !     Now, evaluate the plot values for the simulated spectrum.
 !
-      write(iOut,*)
-      write(iOut,*)
-      write(iOut,*)' Hrant - minval = ',minval(fcDataTable(1,:))
-      write(iOut,*)' Hrant - maxval = ',maxval(fcDataTable(1,:))
-      write(iOut,*)
-      write(iOut,*)
       minPeakPosition = minval(fcDataTable(1,:))-2.0*maxFWHM
       maxPeakPosition = maxval(fcDataTable(1,:))+2.0*maxFWHM
       write(iOut,5000) plotStepSize,minPeakPosition,maxPeakPosition
