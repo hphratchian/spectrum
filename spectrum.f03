@@ -3,9 +3,13 @@ INCLUDE "spectrum_mod.f03"
 !
 !     This program reads Franck-Condon progression data from a Gaussian
 !     formatted checkpoint file and generates {x,y} plotting data with gaussian
-!     enveloping.
+!     enveloping. The program requires three command line arguments:
+!           1. the name of the Gaussian fchk file with FC data
+!           2. the name of the output text spectrum file
+!           3. the name of the output text VMI data file
 !
-!     Hrant P. Hratchian, 2024.
+!
+!     Hrant P. Hratchian, 2024, 2025.
 !     hhratchian@umcerced.edu
 !     University of California, Merced
 !
