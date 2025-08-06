@@ -8,6 +8,8 @@ INCLUDE "spectrum_mod.f03"
 !           2. the name of the output text spectrum file
 !           3. the name of the output text VMI data file
 !           4. the input value for beta, which is applied to all peaks
+!           5. the input value for the photon energy (in eV); this is
+!              optional and defaults to 5.0eV.
 !
 !
 !     Hrant P. Hratchian, 2024, 2025.
@@ -20,7 +22,7 @@ INCLUDE "spectrum_mod.f03"
       integer(kind=int64)::i,j,nElements,nPeaksFC,nPlotPoints,  &
         nVMIPlotPoints
       real(kind=real64)::beta,minPeakPosition,maxPeakPosition,  &
-        plotStepSize=0.30,maxFWHM,scaleFactor
+        plotStepSize=0.30,maxFWHM,photonEnergy,scaleFactor
       real(kind=real64),dimension(:),allocatable::tmpVector,fcDataLinear
       real(kind=real64),dimension(:,:),allocatable::fcDataTable,  &
         plotData,vmiPlotData
@@ -58,6 +60,11 @@ INCLUDE "spectrum_mod.f03"
       call get_command_argument(2,spectrumFileName)
       call get_command_argument(3,vmiFileName)
       call mqc_get_command_argument_real(4,beta)
+      if(command_argument_count().ge.5) then
+        call mqc_get_command_argument_real(5,photonEnergy)
+      else
+        photonEnergy = mqc_float(5)
+      endIf
       call myFChk%openFile(fchkFileName,fChkUnit,OK)
       open(Unit=simOut,file=spectrumFileName)
       open(Unit=vmiOut,file=vmiFileName)
@@ -89,12 +96,12 @@ INCLUDE "spectrum_mod.f03"
       fcDataTable(2,:) = fcDataTable(2,:)/scaleFactor
       write(iOut,4010)
       do i = 1,nPeaksFC
-        write(iOut,4100) fcDataTable(:,i)
+        write(iOut,4100) fcDataTable(:,i)*evPHartree/cmM1PHartree
       endDo
 
 !hph+
 !      maxFWHM = mqc_float(2)*evPHartree/cmM1PHartree
-      maxFWHM = mqc_float(1)
+      maxFWHM = mqc_float(2)
 !hph-
 
 !
@@ -148,7 +155,8 @@ INCLUDE "spectrum_mod.f03"
       nVMIPlotPoints = 1024
       Allocate(vmiPlotData(nVMIPlotPoints,nVMIPlotPoints))
       call spectrumData_generate_vmi_image(fcProgression,vmiPlotData,  &
-        nVMIPlotPoints,nVMIPlotPoints,2.5*cmM1PHartree/evPHartree)
+        nVMIPlotPoints,nVMIPlotPoints,  &
+        photonEnergy*cmM1PHartree/evPHartree)
       if(Allocated(tmpVector)) DeAllocate(tmpVector)
       Allocate(tmpVector(2))
       tmpVector = MaxLoc(vmiPlotData)

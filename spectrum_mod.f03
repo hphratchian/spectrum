@@ -229,7 +229,9 @@
           sqrtEKEs(nPeaksUsed) = sqrt(tempEKE)
           sigmas(nPeaksUsed) = spectrum%peakFWHMs(k)/(mqc_float(2)*sqrt(mqc_float(2)*log(mqc_float(2))))
         endDo
-        if(nPeaksUsed.eq.0) return
+        if(nPeaksUsed.eq.0) then
+          return
+        endIf
         maxSqrtEKE = maxval(sqrtEKEs(1:nPeaksUsed))
         maxSigma = maxval(sigmas(1:nPeaksUsed))
         localRadiusScale = (min(mqc_float(mHighRes),mqc_float(nHighRes))/mqc_float(2))/  &
@@ -244,6 +246,7 @@
       do k = 1,spectrum%nPeaksAdded
         if(.not.spectrum%peakFilled(k)) cycle
         peak_eKE = photonEnergy - spectrum%peakPositions(k)
+        write(*,*)' Hrant - peak_eKE = ',peak_eKE
         if(peak_eKE.le.MQC_Small) cycle
         peak_r = localRadiusScale*sqrt(peak_eKE)
         sigma = spectrum%peakFWHMs(k)/(mqc_float(2)*sqrt(mqc_float(2)*log(mqc_float(2))))
