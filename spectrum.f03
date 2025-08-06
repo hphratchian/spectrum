@@ -101,7 +101,7 @@ INCLUDE "spectrum_mod.f03"
 
 !hph+
 !      maxFWHM = mqc_float(2)*evPHartree/cmM1PHartree
-      maxFWHM = mqc_float(2)
+      maxFWHM = mqc_float(10)
 !hph-
 
 !
